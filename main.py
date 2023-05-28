@@ -21,7 +21,7 @@ def analisarPrograma():
     correspondencia = re.match(r'programa(.+?)fimprog.', programa, re.DOTALL)
     if correspondencia:
         bloco = correspondencia.group(1)
-        codigo_c_resultante = analisarBloco(bloco)
+        codigo_c_resultante = analisarBloco(bloco)  # Aqui!
         codigo_c_resultante = adicionarEstruturaC(codigo_c_resultante)
         return codigo_c_resultante
     else:
@@ -35,7 +35,7 @@ def analisarBloco(bloco):
         if declaracoes:
             codigo_c_resultante += analisarDeclaracoes(declaracoes)
         if comandos:
-            codigo_c_resultante += analisarComandos(comandos)
+            codigo_c_resultante += analisarComandos(comandos)  # Aqui!
     return codigo_c_resultante
 
 def analisarDeclaracoes(declaracoes):
@@ -82,8 +82,7 @@ def analisarCmdExpr(argumentos):
     return f"{argumentos};\n"
 
 def adicionarEstruturaC(codigo_c_resultante):
-    codigo_c_resultante = "#include <stdio.h>\n\nint main() {\n" + codigo_c_resultante + "}\n"
-    return codigo_c_resultante
+    return f"#include <stdio.h>\n\nint main() {{ \n{codigo_c_resultante}\n}}"
 
 if __name__ == "__main__":
     codigo_c_resultante = analisarPrograma()
