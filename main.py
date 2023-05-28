@@ -28,12 +28,14 @@ def analisarPrograma():
         raise SyntaxError('Programa inválido')
 
 def analisarBloco(bloco):
-    declaracoes, comandos = re.match(r'(.*?)\{(.*?)\}', bloco, re.DOTALL).groups()
     codigo_c_resultante = ""
-    if declaracoes:
-        codigo_c_resultante += analisarDeclaracoes(declaracoes)
-    if comandos:
-        codigo_c_resultante += analisarComandos(comandos)
+    correspondencia = re.match(r'(.*?)\{(.*?)\}', bloco, re.DOTALL)
+    if correspondencia:
+        declaracoes, comandos = correspondencia.groups()
+        if declaracoes:
+            codigo_c_resultante += analisarDeclaracoes(declaracoes)
+        if comandos:
+            codigo_c_resultante += analisarComandos(comandos)
     return codigo_c_resultante
 
 def analisarDeclaracoes(declaracoes):
@@ -60,7 +62,7 @@ def analisarComandos(comandos):
     return codigo_c_resultante
 
 def analisarCmdLeitura(argumentos):
-    identificador = re.match(r'\(\s*(\w+)\s*\)', argumentos).group(1)
+    identificador = re.match(r'\(\s*(.+?)\s*\)', argumentos).group(1)
     return f"scanf(\"%d\", &{identificador});\n"
 
 def analisarCmdEscrita(argumentos):
