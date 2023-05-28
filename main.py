@@ -1,11 +1,15 @@
 import re
 
-def removerEspacosEmBranco(texto):
-    return re.sub(r'\s+', '', texto)
-
-def analisarPrograma(programa):
+def analisarPrograma():
+    programa = ""
+    while True:
+        linha = input("Digite uma linha do programa (ou '#fim' para encerrar):\n")
+        if linha.strip() == "#fim":
+            break
+        programa += linha + "\n"
+    
     programa = removerEspacosEmBranco(programa)
-    correspondencia = re.match(r'programa(.*?)#fim', programa, re.DOTALL)
+    correspondencia = re.match(r'programa(.+?)fimprog.', programa, re.DOTALL)
     if correspondencia:
         bloco = correspondencia.group(1)
         codigo_c_resultante = analisarBloco(bloco)
@@ -14,91 +18,88 @@ def analisarPrograma(programa):
         raise SyntaxError('Programa inválido')
 
 def analisarBloco(bloco):
-    bloco = removerEspacosEmBranco(bloco)
-    declaracoes, comandos = re.split(r';', bloco)
-    codigo_c_resultante = ''
-    codigo_c_resultante += analisarDeclaracoes(declaracoes)
+    declaracoes, comandos = separarDeclaracoesComandos(bloco)
+    codigo_c_resultante = analisarDeclaracoes(declaracoes)
     codigo_c_resultante += analisarComandos(comandos)
     return codigo_c_resultante
 
+def separarDeclaracoesComandos(bloco):
+    correspondencia = re.match(r'(.+?)(Cmd.*)', bloco, re.DOTALL)
+    if correspondencia:
+        declaracoes = correspondencia.group(1).strip()
+        comandos = correspondencia.group(2).strip()
+        return declaracoes, comandos
+    else:
+        raise SyntaxError('Bloco inválido')
+
 def analisarDeclaracoes(declaracoes):
-    declaracoes = removerEspacosEmBranco(declaracoes)
-    lista_declaracoes = re.split(r',', declaracoes)
-    codigo_c_resultante = ''
-    for declaracao in lista_declaracoes:
-        tipo, variaveis = re.match(r'(inteiro|decimal)(.+)', declaracao).groups()
-        variaveis = re.split(r',', variaveis)
+    correspondencia = re.findall(r'(inteiro|decimal)\s+(\w+(?:,\s*\w+)*)\s*;', declaracoes)
+    codigo_c_resultante = ""
+    for tipo, variaveis in correspondencia:
+        variaveis = variaveis.split(',')
         for variavel in variaveis:
             codigo_c_resultante += f'{tipo} {variavel};\n'
     return codigo_c_resultante
 
 def analisarComandos(comandos):
-    comandos = removerEspacosEmBranco(comandos)
-    lista_comandos = re.split(r'\.', comandos)
-    codigo_c_resultante = ''
-    for comando in lista_comandos:
-        comando = removerEspacosEmBranco(comando)
-        if comando.startswith('CmdLeitura'):
-            variavel = re.match(r'CmdLeitura\((.+)\)', comando).group(1)
-            codigo_c_resultante += f'scanf("%lf", &{variavel});\n'
-        elif comando.startswith('CmdEscrita'):
-            texto = re.match(r'CmdEscrita\("(.+)"\)', comando).group(1)
-            codigo_c_resultante += f'printf("{texto}\\n");\n'
-        elif comando.startswith('CmdExpr'):
-            atribuicao = re.match(r'CmdExpr\((.+)\)', comando).group(1)
-            codigo_c_resultante += analisarAtribuicao(atribuicao)
+    comandos = comandos.strip()
+    lista_comandos = re.findall(r'(CmdLeitura|CmdEscrita|CmdIf|CmdExpr)\s*\((.*?)\)(?:\s*\{(.*?)\})?', comandos)
+    codigo_c_resultante = ""
+    for comando, argumento, bloco in lista_comandos:
+        if comando == 'CmdLeitura':
+            codigo_c_resultante += analisarCmdLeitura(argumento)
+        elif comando == 'CmdEscrita':
+            codigo_c_resultante += analisarCmdEscrita(argumento)
+        elif comando == 'CmdIf':
+            codigo_c_resultante += analisarCmdIf(argumento, bloco)
+        elif comando == 'CmdExpr':
+            codigo_c_resultante += analisarCmdExpr(argumento)
     return codigo_c_resultante
 
-def analisarAtribuicao(atribuicao):
-    atribuicao = removerEspacosEmBranco(atribuicao)
-    variavel, expressao = re.match(r'(.+):=(.+)', atribuicao).groups()
-    expressao_c = analisarExpressao(expressao)
-    return f'{variavel} = {expressao_c};\n'
-
-def analisarExpressao(expressao):
-    expressao = removerEspacosEmBranco(expressao)
-    termo_esquerda, termos_direita = re.match(r'(.+)(\+|\-)(.+)', expressao).groups()
-    termo_esquerda_c = analisarTermo(termo_esquerda)
-    termos_direita_c = analisarTermosDireita(termos_direita)
-    return f'{termo_esquerda_c} {termos_direita_c}'
-
-def analisarTermosDireita(termos):
-    termos = removerEspacosEmBranco(termos)
-    if re.match(r'(\+|\-)(.+)', termos):
-        operador, termo = re.match(r'(\+|\-)(.+)', termos).groups()
-        termo_c = analisarTermo(termo)
-        return f'{operador} {termo_c}'
+def analisarCmdLeitura(argumento):
+    correspondencia = re.match(r'(\w+)', argumento)
+    if correspondencia:
+        variavel = correspondencia.group(1)
+        return f'scanf("%lf", &{variavel});\n'
     else:
-        return ''
+        raise SyntaxError('Comando de leitura inválido')
 
-def analisarTermo(termo):
-    termo = removerEspacosEmBranco(termo)
-    fator_esquerda, fatores_direita = re.match(r'(.+)(\*|\/)(.+)', termo).groups()
-    fator_esquerda_c = analisarFator(fator_esquerda)
-    fatores_direita_c = analisarFatoresDireita(fatores_direita)
-    return f'{fator_esquerda_c} {fatores_direita_c}'
-
-def analisarFatoresDireita(fatores):
-    fatores = removerEspacosEmBranco(fatores)
-    if re.match(r'(\*|\/)(.+)', fatores):
-        operador, fator = re.match(r'(\*|\/)(.+)', fatores).groups()
-        fator_c = analisarFator(fator)
-        return f'{operador} {fator_c}'
+def analisarCmdEscrita(argumento):
+    if argumento.startswith('"') and argumento.endswith('"'):
+        texto = argumento.strip('"')
+        return f'printf("{texto}");\n'
     else:
-        return ''
+        correspondencia = re.match(r'(\w+)', argumento)
+        if correspondencia:
+            variavel = correspondencia.group(1)
+            return f'printf("%lf", {variavel});\n'
+        else:
+            raise SyntaxError('Comando de escrita inválido')
 
-def analisarFator(fator):
-    fator = removerEspacosEmBranco(fator)
-    if fator.isnumeric():
-        return fator
+def analisarCmdIf(argumento, bloco):
+    correspondencia = re.match(r'(.+?)\{(.*?)\}', bloco, re.DOTALL)
+    if correspondencia:
+        condicao = argumento.strip()
+        bloco_if = correspondencia.group(2).strip()
+        codigo_c_resultante = f'if ({condicao})' + '{\n'
+        codigo_c_resultante += analisarComandos(bloco_if) + '}\n'
+        return codigo_c_resultante
     else:
-        return fator
+        raise SyntaxError('Comando if inválido')
 
-programa = ''
-linha = input("Digite o programa na linguagem fictícia (digite #fim para encerrar):\n")
-while linha != '#fim':
-    programa += linha + '\n'
-    linha = input()
+def analisarCmdExpr(argumento):
+    correspondencia = re.match(r'(\w+)\s*:=\s*(.+)', argumento)
+    if correspondencia:
+        variavel = correspondencia.group(1)
+        expressao = correspondencia.group(2)
+        return f'{variavel} = {expressao};\n'
+    else:
+        raise SyntaxError('Comando de expressão inválido')
 
-codigo_c_resultante = analisarPrograma(programa)
+def removerEspacosEmBranco(texto):
+    return re.sub(r'\s+', '', texto)
+
+# Exemplo de uso
+codigo_c_resultante = analisarPrograma()
+print("\nCódigo C resultante:\n")
 print(codigo_c_resultante)
