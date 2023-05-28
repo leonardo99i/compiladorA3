@@ -66,7 +66,7 @@ def analisarCmdLeitura(argumentos):
 def analisarCmdEscrita(argumentos):
     if argumentos.startswith("\""):
         texto = argumentos.strip("\"")
-        return f"printf(\"{texto}\\n\");\n"
+        return f"printf(\"%s\\n\", \"{texto}\");\n"
     else:
         identificador = re.match(r'\(\s*(\w+)\s*\)', argumentos).group(1)
         return f"printf(\"%d\\n\", {identificador});\n"
