@@ -16,7 +16,7 @@ def analisarPrograma():
         else:
             programa += "\n"
         programa += linha
-
+    
     programa = removerEspacosEmBranco(programa)
     correspondencia = re.match(r'programa(.+?)fimprog.', programa, re.DOTALL)
     if correspondencia:
@@ -82,7 +82,8 @@ def analisarCmdExpr(argumentos):
     return f"{argumentos};\n"
 
 def adicionarEstruturaC(codigo_c_resultante):
-    codigo_c_resultante = "#include <stdio.h>\n\nint main() {\n" + codigo_c_resultante
+    codigo_c_resultante = "#include <stdio.h>\n" + codigo_c_resultante
+    codigo_c_resultante += "\nint main() {\n" 
     codigo_c_resultante += "  return 0;\n"
     codigo_c_resultante += "}\n"
     return codigo_c_resultante
