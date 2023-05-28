@@ -8,71 +8,46 @@ def analisarPrograma(programa):
     return analisarProg(programa)
 
 def analisarProg(programa):
-    correspondencia = re.match(r'programa(.*?)Declara(.*?)Blocofimprog\.', programa, re.DOTALL)
+    correspondencia = re.match(r'programa(.*?)fimprog\.', programa, re.DOTALL)
     if correspondencia:
-        declaracoes = analisarDeclaracoes(correspondencia.group(1))
-        bloco = analisarBloco(correspondencia.group(2))
-        return f'{declaracoes}\n{bloco}'
+        declaracoes, comandos = correspondencia.groups()
+        declaracoes_analisadas = analisarDeclaracoes(declaracoes)
+        comandos_analisados = analisarComandos(comandos)
+        return f'{declaracoes_analisadas}\n{comandos_analisados}'
     else:
         raise SyntaxError('Programa inválido')
 
 def analisarDeclaracoes(declaracoes):
-    matches = re.findall(r'(inteiro|decimal)(.*?)\.', declaracoes)
+    matches = re.findall(r'(inteiro|decimal)\s+(.+?)(?:,|$)', declaracoes)
     declaracoes_analisadas = [f'{tipo} {ids.strip()};' for tipo, ids in matches]
     return '\n'.join(declaracoes_analisadas)
 
-def analisarBloco(bloco):
-    comandos = re.findall(r'Cmd(.*?)\.', bloco)
-    comandos_analisados = [analisarComando(cmd) for cmd in comandos]
+def analisarComandos(comandos):
+    matches = re.findall(r'(CmdLeitura|CmdEscrita|CmdExpr|CmdIf)\((.*?)\)', comandos)
+    comandos_analisados = [analisarComando(cmd) for cmd in matches]
     return '\n'.join(comandos_analisados)
 
 def analisarComando(comando):
-    if comando.startswith('Leia'):
-        return analisarComandoLeitura(comando)
-    elif comando.startswith('Escreva'):
-        return analisarComandoEscrita(comando)
-    elif comando.startswith('Se'):
-        return analisarComandoSe(comando)
-    elif ':' in comando:
-        return analisarComandoExpressao(comando)
+    tipo, argumento = comando
+    if tipo == 'CmdLeitura':
+        return f'scanf("%d", &{argumento.strip()});'
+    elif tipo == 'CmdEscrita':
+        return f'printf("{argumento.strip()}\\n");'
+    elif tipo == 'CmdExpr':
+        identificador, expressao = argumento.split(':=')
+        expressao_analisada = analisarExpressao(expressao)
+        return f'{identificador.strip()} = {expressao_analisada};'
+    elif tipo == 'CmdIf':
+        correspondencia = re.match(r'\((.+?)\)(.+?)(else\{(.+?)\})?', argumento, re.DOTALL)
+        condicao, bloco_se, else_match, bloco_senao = correspondencia.groups()
+        bloco_se = analisarComandos(bloco_se)
+        if else_match and bloco_senao:
+            bloco_senao = analisarComandos(bloco_senao)
+            return f'if ({condicao.strip()}) {{\n{bloco_se}\n}} else {{\n{bloco_senao}\n}}'
+        else:
+            return f'if ({condicao.strip()}) {{\n{bloco_se}\n}}'
     else:
         raise SyntaxError(f'Comando inválido: {comando}')
-
-def analisarComandoLeitura(comando):
-    correspondencia = re.match(r'leia\((.*?)\)', comando)
-    if correspondencia:
-        identificador = correspondencia.group(1)
-        return f'scanf("%d", &{identificador.strip()});'
-    else:
-        raise SyntaxError(f'Comando de leitura inválido: {comando}')
-
-def analisarComandoEscrita(comando):
-    correspondencia = re.match(r'escreva\("(.*)"\)', comando)
-    if correspondencia:
-        texto = correspondencia.group(1)
-        return f'printf("{texto}\\n");'
-    else:
-        correspondencia = re.match(r'escreva\((.*?)\)', comando)
-        if correspondencia:
-            identificador = correspondencia.group(1)
-            return f'printf("%d\\n", {identificador.strip()});'
-        else:
-            raise SyntaxError(f'Comando de escrita inválido: {comando}')
-
-def analisarComandoSe(comando):
-    correspondencia = re.match(r'se\((.*?)\)\{(.*?)\}(senao\{(.*?)\})?', comando)
-    if correspondencia:
-        condicao = analisarExpressao(correspondencia.group(1))
-        bloco_se = analisarBloco(correspondencia.group(2))
-        bloco_senao = analisarBloco(correspondencia.group(4)) if correspondencia.group(4) else ''
-        return f'se ({condicao}) {{\n{bloco_se}\n}} senao {{\n{bloco_senao}\n}}'
-    else:
-        raise SyntaxError(f'Comando "se" inválido: {comando}')
-
-def analisarComandoExpressao(comando):
-    identificador, expressao = comando.split(':=')
-    expressao_analisada = analisarExpressao(expressao)
-    return f'{identificador.strip()} = {expressao_analisada};'
 
 def analisarExpressao(expressao):
     expressao = removerEspacosEmBranco(expressao)
@@ -106,9 +81,11 @@ def analisarFator(fator):
 # Exemplo de programa na linguagem fictícia
 exemplo_programa = '''
 programa
-  inteiro x, y.
-  CmdExpr: x := 10 + 20.
-  CmdEscrita(x).
+  inteiro a, b, soma;
+  CmdLeitura(a).
+  CmdLeitura(b).
+  soma := a + b.
+  CmdEscrita("A soma é: ", soma).
 fimprog.
 '''
 
@@ -117,10 +94,19 @@ print("Exemplo de programa na linguagem fictícia:")
 print(exemplo_programa)
 
 # Solicitar o programa ao usuário
-programa = input("Digite o programa na linguagem fictícia: ")
+print("Digite o programa na linguagem fictícia (utilize o marcador #fim para indicar o final do programa):")
+programa = ''
+linha = input()
+while linha != '#fim':
+    programa += linha + '\n'
+    linha = input()
 
 # Chamando a função de análise e tradução
-codigo_c_resultante = analisarPrograma(programa)
+try:
+    codigo_c_resultante = analisarPrograma(programa)
 
-# Exibindo o código C resultante
-print(codigo_c_resultante)
+    # Exibindo o código C resultante
+    print("Código C resultante:")
+    print(codigo_c_resultante)
+except SyntaxError as e:
+    print(f"Erro de sintaxe: {e}")
