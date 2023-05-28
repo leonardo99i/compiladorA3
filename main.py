@@ -1,105 +1,89 @@
 import re
 
+def removerEspacosEmBranco(programa):
+    return re.sub(r'\s+', '', programa)
+
 def analisarPrograma():
     programa = ""
+    primeira_linha = True
+    print("Digite o código fictício abaixo (#fim para encerrar):\n")
     while True:
-        linha = input("Digite uma linha do programa (ou '#fim' para encerrar):\n")
+        linha = input()
         if linha.strip() == "#fim":
             break
-        programa += linha + "\n"
+        if primeira_linha:
+            primeira_linha = False
+        else:
+            programa += "\n"
+        programa += linha
     
     programa = removerEspacosEmBranco(programa)
     correspondencia = re.match(r'programa(.+?)fimprog.', programa, re.DOTALL)
     if correspondencia:
         bloco = correspondencia.group(1)
         codigo_c_resultante = analisarBloco(bloco)
+        codigo_c_resultante = adicionarEstruturaC(codigo_c_resultante)
         return codigo_c_resultante
     else:
         raise SyntaxError('Programa inválido')
 
 def analisarBloco(bloco):
-    declaracoes, comandos = separarDeclaracoesComandos(bloco)
-    codigo_c_resultante = analisarDeclaracoes(declaracoes)
-    codigo_c_resultante += analisarComandos(comandos)
+    declaracoes, comandos = re.match(r'(.*?)\{(.*?)\}', bloco, re.DOTALL).groups()
+    codigo_c_resultante = ""
+    if declaracoes:
+        codigo_c_resultante += analisarDeclaracoes(declaracoes)
+    if comandos:
+        codigo_c_resultante += analisarComandos(comandos)
     return codigo_c_resultante
 
-def separarDeclaracoesComandos(bloco):
-    correspondencia = re.match(r'(.+?)(Cmd.*)', bloco, re.DOTALL)
-    if correspondencia:
-        declaracoes = correspondencia.group(1).strip()
-        comandos = correspondencia.group(2).strip()
-        return declaracoes, comandos
-    else:
-        raise SyntaxError('Bloco inválido')
-
 def analisarDeclaracoes(declaracoes):
-    correspondencia = re.findall(r'(inteiro|decimal)\s+(\w+(?:,\s*\w+)*)\s*;', declaracoes)
     codigo_c_resultante = ""
-    for tipo, variaveis in correspondencia:
-        variaveis = variaveis.split(',')
-        for variavel in variaveis:
-            codigo_c_resultante += f'{tipo} {variavel};\n'
+    declaracoes = re.findall(r'(\w+)\s+(\w+)(,?\s*\w+)*;', declaracoes)
+    for tipo, identificadores in declaracoes:
+        identificadores = re.findall(r'\w+', identificadores)
+        for identificador in identificadores:
+            codigo_c_resultante += f"{tipo} {identificador};\n"
     return codigo_c_resultante
 
 def analisarComandos(comandos):
-    comandos = comandos.strip()
-    lista_comandos = re.findall(r'(CmdLeitura|CmdEscrita|CmdIf|CmdExpr)\s*\((.*?)\)(?:\s*\{(.*?)\})?', comandos)
     codigo_c_resultante = ""
-    for comando, argumento, bloco in lista_comandos:
-        if comando == 'CmdLeitura':
-            codigo_c_resultante += analisarCmdLeitura(argumento)
-        elif comando == 'CmdEscrita':
-            codigo_c_resultante += analisarCmdEscrita(argumento)
-        elif comando == 'CmdIf':
-            codigo_c_resultante += analisarCmdIf(argumento, bloco)
-        elif comando == 'CmdExpr':
-            codigo_c_resultante += analisarCmdExpr(argumento)
+    comandos = re.findall(r'(\w+)\s*(\(.*?\))?\s*\{(.*?)\}', comandos, re.DOTALL)
+    for comando, argumentos, bloco in comandos:
+        if comando == "CmdLeitura":
+            codigo_c_resultante += analisarCmdLeitura(argumentos)
+        elif comando == "CmdEscrita":
+            codigo_c_resultante += analisarCmdEscrita(argumentos)
+        elif comando == "CmdIf":
+            codigo_c_resultante += analisarCmdIf(argumentos, bloco)
+        elif comando == "CmdExpr":
+            codigo_c_resultante += analisarCmdExpr(argumentos)
     return codigo_c_resultante
 
-def analisarCmdLeitura(argumento):
-    correspondencia = re.match(r'(\w+)', argumento)
-    if correspondencia:
-        variavel = correspondencia.group(1)
-        return f'scanf("%lf", &{variavel});\n'
+def analisarCmdLeitura(argumentos):
+    identificador = re.match(r'\(\s*(\w+)\s*\)', argumentos).group(1)
+    return f"scanf(\"%d\", &{identificador});\n"
+
+def analisarCmdEscrita(argumentos):
+    if argumentos.startswith("\""):
+        texto = argumentos.strip("\"")
+        return f"printf(\"{texto}\\n\");\n"
     else:
-        raise SyntaxError('Comando de leitura inválido')
+        identificador = re.match(r'\(\s*(\w+)\s*\)', argumentos).group(1)
+        return f"printf(\"%d\\n\", {identificador});\n"
 
-def analisarCmdEscrita(argumento):
-    if argumento.startswith('"') and argumento.endswith('"'):
-        texto = argumento.strip('"')
-        return f'printf("{texto}");\n'
-    else:
-        correspondencia = re.match(r'(\w+)', argumento)
-        if correspondencia:
-            variavel = correspondencia.group(1)
-            return f'printf("%lf", {variavel});\n'
-        else:
-            raise SyntaxError('Comando de escrita inválido')
+def analisarCmdIf(argumentos, bloco):
+    condicao = re.match(r'\(\s*(.+?)\s*\)', argumentos).group(1)
+    codigo_c_resultante = f"if ({condicao}) {{\n{analisarBloco(bloco)}}}\n"
+    return codigo_c_resultante
 
-def analisarCmdIf(argumento, bloco):
-    correspondencia = re.match(r'(.+?)\{(.*?)\}', bloco, re.DOTALL)
-    if correspondencia:
-        condicao = argumento.strip()
-        bloco_if = correspondencia.group(2).strip()
-        codigo_c_resultante = f'if ({condicao})' + '{\n'
-        codigo_c_resultante += analisarComandos(bloco_if) + '}\n'
-        return codigo_c_resultante
-    else:
-        raise SyntaxError('Comando if inválido')
+def analisarCmdExpr(argumentos):
+    return f"{argumentos};\n"
 
-def analisarCmdExpr(argumento):
-    correspondencia = re.match(r'(\w+)\s*:=\s*(.+)', argumento)
-    if correspondencia:
-        variavel = correspondencia.group(1)
-        expressao = correspondencia.group(2)
-        return f'{variavel} = {expressao};\n'
-    else:
-        raise SyntaxError('Comando de expressão inválido')
+def adicionarEstruturaC(codigo_c_resultante):
+    codigo_c_resultante = "#include <stdio.h>\n\nint main() {\n" + codigo_c_resultante + "}\n"
+    return codigo_c_resultante
 
-def removerEspacosEmBranco(texto):
-    return re.sub(r'\s+', '', texto)
-
-# Exemplo de uso
-codigo_c_resultante = analisarPrograma()
-print("\nCódigo C resultante:\n")
-print(codigo_c_resultante)
+if __name__ == "__main__":
+    codigo_c_resultante = analisarPrograma()
+    print("\nCódigo C resultante:\n")
+    print(codigo_c_resultante)
