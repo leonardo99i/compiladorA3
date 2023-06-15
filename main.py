@@ -1,94 +1,83 @@
-import re
+from antlr4 import *
+from MinhaLinguagemLexer import MinhaLinguagemLexer
+from MinhaLinguagemParser import MinhaLinguagemParser
 
-def removerEspacosEmBranco(programa):
-    return re.sub(r'\s+', '', programa)
+# Classe de listener personalizado para implementar as ações semânticas
+class MinhaLinguagemListener(ParseTreeListener):
+    def __init__(self):
+        self.saida = ""
 
-def analisarPrograma():
-    programa = ""
-    primeira_linha = True
-    print("Digite o código fictício abaixo (#fim para encerrar):\n")
-    while True:
-        linha = input()
-        if linha.strip() == "#fim":
-            break
-        if primeira_linha:
-            primeira_linha = False
+    def enterDeclaracaoVariavel(self, ctx:MinhaLinguagemParser.DeclaracaoVariavelContext):
+        nome_variavel = ctx.ID().getText()
+        valor_variavel = self.visit(ctx.expression())
+        self.saida += f"int {nome_variavel} = {valor_variavel};\n"
+
+    def enterComandoImprimir(self, ctx:MinhaLinguagemParser.ComandoImprimirContext):
+        valor = self.visit(ctx.expression())
+        self.saida += f"printf(\"%d\\n\", {valor});\n"
+
+    def enterComandoAtribuicao(self, ctx:MinhaLinguagemParser.ComandoAtribuicaoContext):
+        nome_variavel = ctx.ID().getText()
+        valor_variavel = self.visit(ctx.expression())
+        self.saida += f"{nome_variavel} = {valor_variavel};\n"
+
+    def enterComandoCondicional(self, ctx:MinhaLinguagemParser.ComandoCondicionalContext):
+        condicao = self.visit(ctx.expression())
+        self.saida += f"if ({condicao}) {{\n"
+        self.visit(ctx.statement(0))
+        self.saida += "}\n"
+        if ctx.ELSE():
+            self.saida += "else {\n"
+            self.visit(ctx.statement(1))
+            self.saida += "}\n"
+
+    def visitExpressao(self, ctx:MinhaLinguagemParser.ExpressaoContext):
+        if ctx.op:
+            esquerda = self.visit(ctx.expression(0))
+            direita = self.visit(ctx.expression(1))
+            op = ctx.op.text
+            return f"{esquerda} {op} {direita}"
+        elif ctx.NUMBER():
+            return ctx.NUMBER().getText()
+        elif ctx.ID():
+            return ctx.ID().getText()
+        elif ctx.BOOLEAN():
+            return ctx.BOOLEAN().getText()
         else:
-            programa += "\n"
-        programa += linha
-    
-    programa = removerEspacosEmBranco(programa)
-    correspondencia = re.match(r'programa(.+?)fimprog.', programa, re.DOTALL)
-    if correspondencia:
-        bloco = correspondencia.group(1)
-        codigo_c_resultante = analisarBloco(bloco)
-        codigo_c_resultante = adicionarEstruturaC(codigo_c_resultante)
-        return codigo_c_resultante
-    else:
-        raise SyntaxError('Programa inválido')
+            return self.visit(ctx.expression())
 
-def analisarBloco(bloco):
-    codigo_c_resultante = ""
-    correspondencia = re.match(r'(.*?)\{(.*?)\}', bloco, re.DOTALL)
-    if correspondencia:
-        declaracoes, comandos = correspondencia.groups()
-        if declaracoes:
-            codigo_c_resultante += analisarDeclaracoes(declaracoes)
-        if comandos:
-            codigo_c_resultante += analisarComandos(comandos)
-    return codigo_c_resultante
+# Função para traduzir o código da linguagem fictícia para C
+def traduzir_codigo(codigo):
+    # Crie um objeto de fluxo de caracteres com o código
+    input_stream = InputStream(codigo)
 
-def analisarDeclaracoes(declaracoes):
-    codigo_c_resultante = ""
-    declaracoes = re.findall(r'(\w+)\s+(\w+)(,?\s*\w+)*;', declaracoes)
-    for tipo, identificadores in declaracoes:
-        identificadores = re.findall(r'\w+', identificadores)
-        for identificador in identificadores:
-            codigo_c_resultante += f"{tipo} {identificador};\n"
-    return codigo_c_resultante
+    # Crie um lexer com o objeto de fluxo de caracteres
+    lexer = MinhaLinguagemLexer(input_stream)
 
-def analisarComandos(comandos):
-    codigo_c_resultante = ""
-    comandos = re.findall(r'(\w+)\s*(\(.*?\))?\s*\{(.*?)\}', comandos, re.DOTALL)
-    for comando, argumentos, bloco in comandos:
-        if comando == "CmdLeitura":
-            codigo_c_resultante += analisarCmdLeitura(argumentos)
-        elif comando == "CmdEscrita":
-            codigo_c_resultante += analisarCmdEscrita(argumentos)
-        elif comando == "CmdIf":
-            codigo_c_resultante += analisarCmdIf(argumentos, bloco)
-        elif comando == "CmdExpr":
-            codigo_c_resultante += analisarCmdExpr(argumentos)
-    return codigo_c_resultante
+    # Crie um objeto de tokenização
+    token_stream = CommonTokenStream(lexer)
 
-def analisarCmdLeitura(argumentos):
-    identificador = re.match(r'\(\s*(\w+)\s*\)', argumentos).group(1)
-    return f"scanf(\"%d\", &{identificador});\n"
+    # Crie um parser com o objeto de tokenização
+    parser = MinhaLinguagemParser(token_stream)
 
-def analisarCmdEscrita(argumentos):
-    if argumentos.startswith("\""):
-        texto = argumentos.strip("\"")
-        return f"printf(\"%s\\n\", \"{texto}\");\n"
-    else:
-        identificador = re.match(r'\(\s*(\w+)\s*\)', argumentos).group(1)
-        return f"printf(\"%d\\n\", {identificador});\n"
+    # Execute o parser e obtenha a árvore de análise
+    tree = parser.program()
 
-def analisarCmdIf(argumentos, bloco):
-    condicao = re.match(r'\(\s*(.+?)\s*\)', argumentos).group(1)
-    codigo_c_resultante = f"if ({condicao}) {{\n{analisarBloco(bloco)}}}\n"
-    return codigo_c_resultante
+    # Crie um objeto de listener personalizado
+    listener = MinhaLinguagemListener()
 
-def analisarCmdExpr(argumentos):
-    return f"{argumentos};\n"
+    # Visite a árvore de análise com o listener personalizado
+    walker = ParseTreeWalker()
+    walker.walk(listener, tree)
 
-def adicionarEstruturaC(codigo_c_resultante):
-    codigo_c_resultante = "#include <stdio.h>\n" + codigo_c_resultante
-    codigo_c_resultante += "\nint main() {\n" 
-    codigo_c_resultante += "  return 0;\n"
-    codigo_c_resultante += "}\n"
-    return codigo_c_resultante
+    return listener.saida
 
-if __name__ == "__main__":
-    codigo_c_resultante = analisarPrograma()
-    print("\nCódigo C resultante:\n")
-    print(codigo_c_resultante)
+# Solicite ao usuário para digitar o código em "MinhaLinguagem"
+codigo = input("Digite o código em MinhaLinguagem:\n")
+
+# Traduza o código para a linguagem C
+codigo_c = traduzir_codigo(codigo)
+
+# Imprima o código C traduzido
+print("\nCódigo traduzido para C:")
+print(codigo_c)
