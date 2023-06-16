@@ -65,7 +65,6 @@ def p_tipo(p):
 parser = yacc.yacc()
 
 # Arquivo: main.py
-# Arquivo principal para teste do lexer e parser
 
 # Importação do lexer e parser
 from lexer import lexer
