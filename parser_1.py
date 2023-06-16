@@ -1,5 +1,5 @@
 from lexer import analisador_lexico
-
+#lexico
 tokens = []
 posicao = 0
 
