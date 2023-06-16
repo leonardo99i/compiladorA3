@@ -1,5 +1,4 @@
 # Arquivo: lexer.py
-# Exemplo de arquivo para definição do lexer usando PLY
 
 import ply.lex as lex
 
