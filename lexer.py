@@ -1,59 +1,51 @@
 import re
 
-patterns = [
-    (r'[ \t\n]+', None),  # Ignorar espaços em branco, tabs e quebras de linha
-    (r'programa', 'PROGRAMA'),
-    (r'fimprog', 'FIMPROG'),
-    (r'inteiro', 'INTEIRO'),
-    (r'decimal', 'DECIMAL'),
-    (r'leia', 'LEIA'),
-    (r'escreva', 'ESCREVA'),
-    (r'if', 'IF'),
-    (r'else', 'ELSE'),
-    (r'\(', 'ABRE_PAREN'),
-    (r'\)', 'FECHA_PAREN'),
-    (r'\{', 'ABRE_CHAVE'),
-    (r'\}', 'FECHA_CHAVE'),
-    (r',', 'VIRGULA'),
-    (r':=', 'ATRIBUICAO'),
-    (r':', 'DOIS_PONTOS'),
-    (r';', 'PONTO_VIRGULA'),
-    (r'=', 'IGUAL'),
-    (r'!=', 'DIFERENTE'),
-    (r'<', 'MENOR'),
-    (r'<=', 'MENOR_IGUAL'),
-    (r'>', 'MAIOR'),
-    (r'>=', 'MAIOR_IGUAL'),
-    (r'\+', 'SOMA'),
-    (r'-', 'SUBTRACAO'),
-    (r'\*', 'MULTIPLICACAO'),
-    (r'/', 'DIVISAO'),
-    (r'"([^"\\]|\\.)*"', 'TEXTO'),  # String delimitada por aspas duplas
-    (r'[a-zA-Z][a-zA-Z0-9]*', 'IDENTIFICADOR'),  # Identificador
-    (r'\d+\.\d+', 'NUM_DECIMAL'),  # Número decimal
-    (r'\d+', 'NUM_INTEIRO')  # Número inteiro
-]
-
-
 class Lexer:
     def __init__(self, code):
         self.code = code
         self.position = 0
+        self.tokens = []
 
     def tokenize(self):
-        tokens = []
         while self.position < len(self.code):
-            match = None
-            for pattern, token_type in patterns:
-                regex = re.compile(pattern)
-                match = regex.match(self.code, self.position)
-                if match:
-                    value = match.group(0)
-                    if token_type:
-                        tokens.append((token_type, value))
-                    break
-            if not match:
-                raise SyntaxError(f"Invalid token: {self.code[self.position]}")
+            if self.code[self.position].isspace():
+                self.position += 1
+            elif self.code[self.position].isalpha():
+                self.identifier()
+            elif self.code[self.position].isdigit():
+                self.integer()
+            elif self.code[self.position] == '"':
+                self.string()
+            elif self.code[self.position] in ['+', '-', '*', '/', '=', '>', '(', ')', '{', '}', ',', ';']:
+                self.special_character()
             else:
-                self.position = match.end()
-        return tokens
+                raise SyntaxError(f"Token inválido: {self.code[self.position]}")
+        return self.tokens
+
+    def identifier(self):
+        identifier = ''
+        while self.position < len(self.code) and (self.code[self.position].isalpha() or self.code[self.position].isdigit()):
+            identifier += self.code[self.position]
+            self.position += 1
+        self.tokens.append(('IDENTIFICADOR', identifier))
+
+    def integer(self):
+        integer = ''
+        while self.position < len(self.code) and self.code[self.position].isdigit():
+            integer += self.code[self.position]
+            self.position += 1
+        self.tokens.append(('INTEIRO', integer))
+
+    def string(self):
+        string = ''
+        self.position += 1
+        while self.position < len(self.code) and self.code[self.position] != '"':
+            string += self.code[self.position]
+            self.position += 1
+        self.position += 1
+        self.tokens.append(('STRING', string))
+
+    def special_character(self):
+        special_char = self.code[self.position]
+        self.position += 1
+        self.tokens.append((special_char, special_char))
