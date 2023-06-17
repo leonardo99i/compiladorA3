@@ -1,12 +1,12 @@
 from lexer import Lexer
-from parser_1 import Parser
-
+from parser_1 import Parser, Converter
 
 def analyze(code):
     lexer = Lexer(code)
     tokens = lexer.tokenize()
-    parser = Parser(tokens)
-    parser.parse()
+
+    converter = Converter(tokens)
+    converter.parse()
 
 
 if __name__ == '__main__':
