@@ -1,8 +1,24 @@
+from lexer import Lexer
+
 class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
-        self.index = 0
-        self.current_token = self.tokens[self.index]
+        self.current_token = None
+        self.next_token = None
+        self.token_index = -1
+        self.advance()
+
+    def advance(self):
+        self.token_index += 1
+        if self.token_index < len(self.tokens):
+            self.current_token = self.tokens[self.token_index]
+            if self.token_index + 1 < len(self.tokens):
+                self.next_token = self.tokens[self.token_index + 1]
+            else:
+                self.next_token = None
+        else:
+            self.current_token = None
+            self.next_token = None
 
     def parse(self):
         self.program()
@@ -12,92 +28,78 @@ class Parser:
         self.match('IDENTIFICADOR')
         self.match('ABRE_CHAVE')
         self.declarations()
-        self.commands()
+        self.statements()
         self.match('FECHA_CHAVE')
-        self.match('FIMPROG')
+        self.match('FIM_PROG')
 
     def declarations(self):
-        while self.current_token[0] == 'INTEIRO':
+        if self.current_token[0] == 'INTEIRO':
             self.match('INTEIRO')
-            self.variables()
-            self.match(';')
-
-    def variables(self):
-        self.match('IDENTIFICADOR')
-        while self.current_token[0] == ',':
-            self.match(',')
             self.match('IDENTIFICADOR')
+            while self.current_token[0] == 'VIRGULA':
+                self.match('VIRGULA')
+                self.match('IDENTIFICADOR')
 
-    def commands(self):
-        while self.current_token[0] != 'FECHA_CHAVE':
-            self.command()
+    def statements(self):
+        self.statement()
+        while self.current_token[0] == 'PONTO_VIRGULA':
+            self.match('PONTO_VIRGULA')
+            self.statement()
 
-    def command(self):
-        if self.current_token[0] == 'IDENTIFICADOR':
-            self.match('IDENTIFICADOR')
-            self.match('=')
-            self.expr_arit()
-            self.match(';')
-        elif self.current_token[0] == 'LEIA':
-            self.match('LEIA')
-            self.match('(')
-            self.variables()
-            self.match(')')
-            self.match(';')
+    def statement(self):
+        if self.current_token[0] == 'LEIA':
+            self.read_statement()
         elif self.current_token[0] == 'ESCREVA':
-            self.match('ESCREVA')
-            self.match('(')
-            self.expr_string()
-            self.match(')')
-            self.match(';')
-        elif self.current_token[0] == 'SE':
-            self.match('SE')
-            self.match('(')
-            self.condicao()
-            self.match(')')
-            self.match('ABRE_CHAVE')
-            self.commands()
-            self.match('FECHA_CHAVE')
-            if self.current_token[0] == 'SENAO':
-                self.match('SENAO')
-                self.match('ABRE_CHAVE')
-                self.commands()
-                self.match('FECHA_CHAVE')
+            self.write_statement()
+        elif self.current_token[0] == 'IDENTIFICADOR':
+            self.assignment_statement()
 
-    def expr_arit(self):
-        self.termo()
-        while self.current_token[0] in ['+', '-', '*', '/']:
+    def read_statement(self):
+        self.match('LEIA')
+        self.match('ABRE_PARENTESES')
+        self.match('IDENTIFICADOR')
+        self.match('FECHA_PARENTESES')
+
+    def write_statement(self):
+        self.match('ESCREVA')
+        self.match('ABRE_PARENTESES')
+        self.expression()
+        while self.current_token[0] == 'VIRGULA':
+            self.match('VIRGULA')
+            self.expression()
+        self.match('FECHA_PARENTESES')
+
+    def assignment_statement(self):
+        self.match('IDENTIFICADOR')
+        self.match('ATRIBUICAO')
+        self.expression()
+
+    def expression(self):
+        self.term()
+        while self.current_token[0] in ['MAIS', 'MENOS']:
             self.match(self.current_token[0])
-            self.termo()
+            self.term()
 
-    def termo(self):
-        self.fator()
-        while self.current_token[0] in ['*', '/']:
+    def term(self):
+        self.factor()
+        while self.current_token[0] in ['MULTIPLICACAO', 'DIVISAO']:
             self.match(self.current_token[0])
-            self.fator()
+            self.factor()
 
-    def fator(self):
-        if self.current_token[0] == 'IDENTIFICADOR':
+    def factor(self):
+        if self.current_token[0] == 'ABRE_PARENTESES':
+            self.match('ABRE_PARENTESES')
+            self.expression()
+            self.match('FECHA_PARENTESES')
+        elif self.current_token[0] == 'NUMERO':
+            self.match('NUMERO')
+        elif self.current_token[0] == 'IDENTIFICADOR':
             self.match('IDENTIFICADOR')
-        elif self.current_token[0] == 'INTEIRO':
-            self.match('INTEIRO')
         else:
-            self.match('(')
-            self.expr_arit()
-            self.match(')')
-
-    def expr_string(self):
-        self.match('STRING')
-
-    def condicao(self):
-        self.expr_arit()
-        self.match('>=')
-        self.expr_arit()
+            raise SyntaxError(f"Token inválido: {self.current_token[0]}")
 
     def match(self, expected_token):
         if self.current_token[0] == expected_token:
-            self.index += 1
-            if self.index < len(self.tokens):
-                self.current_token = self.tokens[self.index]
+            self.advance()
         else:
             raise SyntaxError(f"Esperado '{expected_token}', encontrado '{self.current_token[0]}'")
