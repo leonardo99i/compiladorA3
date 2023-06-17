@@ -37,15 +37,21 @@ class Parser:
         if self.current_token and self.current_token[0] == 'LEIA':
             self.match('LEIA')
             self.match('ABRE_PAREN')
+            var_id = self.current_token[1]
             self.match('IDENTIFICADOR')
             self.match('FECHA_PAREN')
+            print(f'Input: {var_id}')
         elif self.current_token and self.current_token[0] == 'ESCREVA':
             self.match('ESCREVA')
             self.match('ABRE_PAREN')
             if self.current_token and self.current_token[0] == 'TEXTO':
+                texto = self.current_token[1].strip('"')
                 self.match('TEXTO')
+                print(f'Output: {texto}')
             else:
+                var_id = self.current_token[1]
                 self.match('IDENTIFICADOR')
+                print(f'Output: {var_id}')
             self.match('FECHA_PAREN')
         elif self.current_token and self.current_token[0] == 'IF':
             self.match('IF')
@@ -65,9 +71,11 @@ class Parser:
                     self.cmd()
                 self.match('FECHA_CHAVE')
         elif self.current_token and self.current_token[0] == 'IDENTIFICADOR':
+            var_id = self.current_token[1]
             self.match('IDENTIFICADOR')
             self.match('ATRIBUICAO')
             self.expr()
+            print(f'Variable assignment: {var_id}')
 
     def op_rel(self):
         if self.current_token and self.current_token[0] in ['IGUAL', 'DIFERENTE', 'MENOR', 'MENOR_IGUAL', 'MAIOR', 'MAIOR_IGUAL']:
