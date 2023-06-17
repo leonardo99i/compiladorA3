@@ -22,6 +22,7 @@ class Parser:
 
     def parse(self):
         self.program()
+<<<<<<< HEAD
 
     def program(self):
         self.match('PROGRAMA')
@@ -103,3 +104,7 @@ class Parser:
             self.advance()
         else:
             raise SyntaxError(f"Esperado '{expected_token}', encontrado '{self.current_token[0]}'")
+=======
+        if self.current_token:
+            raise SyntaxError(f"Unexpected token: {self.current_token[0]}")
+>>>>>>> parent of 9cdf660 (quase o resultado esperado)
