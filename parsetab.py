@@ -34,6 +34,6 @@ _lr_productions = [
   ('expression -> expression TIMES term','expression',3,'p_expression','calculadora.py',66),
   ('expression -> expression DIVIDE term','expression',3,'p_expression','calculadora.py',67),
   ('expression -> term','expression',1,'p_expression','calculadora.py',68),
-  ('term -> NUMBER','term',1,'p_term','calculadora.py',84),
-  ('term -> VAR','term',1,'p_term','calculadora.py',85),
+  ('term -> NUMBER','term',1,'p_term','calculadora.py',91),
+  ('term -> VAR','term',1,'p_term','calculadora.py',92),
 ]

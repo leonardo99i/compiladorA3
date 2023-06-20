@@ -135,6 +135,15 @@ while True:
 
     print(f"Resultado: {variables.get(var_name, 0)}")
 
+    if variables.get(var_name, 0) > 20:
+        print("O resultado é maior que 20.")
+    else:
+        print("O resultado não é maior que 20.")
+
     print("\nCódigo equivalente em Python:")
     print(f"{var_name} = {var1} {operation} {var2}")
     print(f"print({var_name})")
+    print("if {} > 20:".format(var_name))
+    print("    print('O resultado é maior que 20.')")
+    print("else:")
+    print("    print('O resultado não é maior que 20.')")
