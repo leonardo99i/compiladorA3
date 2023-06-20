@@ -4,20 +4,20 @@ import re
 def analisador_lexico(codigo):
     padroes = [
         ('VAR', r'VAR'),
-        ('TIPO', r'INT|FLOAT'),
+        ('TIPO', r'INT|FLOAT|STRING'),
         ('SE', r'SE'),
         ('SENAO', r'SENAO'),
         ('ESCREVA', r'ESCREVA'),
         ('NOME_VARIAVEL', r'[a-zA-Z_]\w*'),
         ('OPERADOR', r'[<>]=?'),
         ('ATRIBUICAO', r'recebe'),
-        ('INTEIRO', r'\d+'),
+        ('INTEIRO', r'-?\d+'),
         ('PONTO_FLUTUANTE', r'\d+\.\d+'),
         ('DOIS_PONTOS', r':'),
         ('FIM_LINHA', r'\$'),
         ('ABRE_PARENTESES', r'\('),
         ('FECHA_PARENTESES', r'\)'),
-        ('ASPAS_DUPLAS', r'"[^"]*"'),  # Alteração no padrão para capturar sequências entre aspas duplas
+        ('ASPAS_DUPLAS', r'"[^"]*"'),
         ('ESPACO', r'\s+')
     ]
 
@@ -71,14 +71,35 @@ def analisador_sintatico(tokens):
                     fim_linha = verificar_token_esperado('FIM_LINHA')
                     if fim_linha:
                         return {
-                            'texto': "'" + texto[1].strip('"') + "'"  # Adicionar aspas simples ao redor do texto capturado
+                            'tipo': 'impressao_texto',
+                            'texto': texto[1].strip('"')
+                        }
+        return None
+
+    def analisar_variavel():
+        nome_variavel = verificar_token_esperado('NOME_VARIAVEL')
+        if nome_variavel:
+            atribuicao = verificar_token_esperado('ATRIBUICAO')
+            if atribuicao:
+                valor = verificar_token_esperado('INTEIRO') or verificar_token_esperado('PONTO_FLUTUANTE')
+                if valor:
+                    fim_linha = verificar_token_esperado('FIM_LINHA')
+                    if fim_linha:
+                        return {
+                            'tipo': 'declaracao_atribuicao',
+                            'nome_variavel': nome_variavel[1],
+                            'valor': valor[1]
                         }
         return None
 
     resultado = []
     while posicao < len(tokens):
         token = obter_proximo_token()
-        if token and token[0] == 'ESCREVA':
+        if token and token[0] == 'VAR':
+            variavel = analisar_variavel()
+            if variavel:
+                resultado.append(variavel)
+        elif token and token[0] == 'ESCREVA':
             escreva = analisar_escreva()
             if escreva:
                 resultado.append(escreva)
@@ -92,7 +113,9 @@ def analisador_sintatico(tokens):
 
 
 codigo = '''
-ESCREVA("OLÁ")$
+VAR x recebe 5$
+ESCREVA("Maior que 10")$
+ESCREVA_VARIAVEL(x)$
 '''
 
 tokens = analisador_lexico(codigo)
@@ -101,4 +124,7 @@ if tokens:
     if codigo_python:
         print("Código em Python gerado:")
         for instrucao in codigo_python:
-            print(f"print({instrucao['texto']})")
+            if instrucao['tipo'] == 'impressao_texto':
+                print(f"print('{instrucao['texto']}')")
+            elif instrucao['tipo'] == 'declaracao_atribuicao':
+                print(f"{instrucao['nome_variavel']} = {instrucao['valor']}")
